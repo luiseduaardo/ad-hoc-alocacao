@@ -1,4 +1,5 @@
 import sys
+import re
 import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
@@ -58,36 +59,45 @@ def alocar(participantes: pd.DataFrame, delegados: pd.DataFrame) -> pd.DataFrame
     linhas, colunas = linear_sum_assignment(custo)
 
     resultados = []
+    relatorio = []
     for i, j in zip(linhas, colunas):
-        resultados.append(
+        relatorio.append(
             {
-                "participante": participantes.iloc[i]["nome"],
+                "participante": re.sub(r'[^\w\s]', '', participantes.iloc[i]["nome"].strip()),
                 "delegado": delegados.iloc[j]["nome"],
                 "distancia": round(float(custo[i, j]), 3),
-                "participante_X": participantes.iloc[i]["X"],
-                "participante_Y": participantes.iloc[i]["Y"],
-                "participante_Z": participantes.iloc[i]["Z"],
+                "participante_X": round(participantes.iloc[i]["X"], 3),
+                "participante_Y": round(participantes.iloc[i]["Y"], 3),
+                "participante_Z": round(participantes.iloc[i]["Z"], 3),
                 "delegado_X": delegados.iloc[j]["X"],
                 "delegado_Y": delegados.iloc[j]["Y"],
                 "delegado_Z": delegados.iloc[j]["Z"],
             }
         )
+        resultados.append(
+            {
+                "participante": re.sub(r'[^\w\s]', '', participantes.iloc[i]["nome"].strip()),
+                "delegado": delegados.iloc[j]["nome"],
+                "distancia": round(float(custo[i, j]), 3)
+            }
+        )
 
     resultado_df = pd.DataFrame(resultados).sort_values("distancia").reset_index(drop=True)
-    return resultado_df
+    relatorio_df = pd.DataFrame(relatorio).sort_values("distancia").reset_index(drop=True)
+    return resultado_df, relatorio_df
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Uso: python hungarian_algorithm.py participantes.csv delegados.csv")
+    if len(sys.argv) != 2:
+        print("Uso: python hungarian_algorithm.py data/participantes.csv ")
         sys.exit(1)
 
-    caminho_participantes, caminho_delegados = sys.argv[1], sys.argv[2]
+    caminho_participantes, caminho_delegados = sys.argv[1], 'data/delegados.csv'
 
     participantes = carregar_dados(caminho_participantes)
     delegados = carregar_dados(caminho_delegados)
 
-    resultado = alocar(participantes, delegados)
+    resultado, relatorio = alocar(participantes, delegados)
 
     print("\n=== ALOCAÇÃO ÓTIMA (menor soma total de distâncias) ===\n")
     print(resultado.to_string(index=False))
@@ -97,13 +107,12 @@ def main():
     print(f"\nCusto total (soma das distâncias): {custo_total:.3f}")
     print(f"Distância média por match: {custo_medio:.3f}")
 
-    resultado_bruto = resultado.drop(columns=
-        ["participante_X", "participante_Y", "participante_Z",
-         "delegado_X", "delegado_Y", "delegado_Z", "distancia"]
-    )
+    resultado_bruto = resultado.drop(columns=["distancia"])
 
-    saida = "alocacao_final.csv"
+    saida = "final_result/alocacao_final.csv"
+    path_relatorio = "final_result/relatorio.csv"
     resultado_bruto.to_csv(saida, index=False)
+    relatorio.to_csv(path_relatorio, index=False)
     print(f"\nResultados salvos em: {saida}")
 
 
